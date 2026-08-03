@@ -37,8 +37,11 @@ venv\Scripts\python.exe download_videos.py
 1. Launch the application.
 2. Paste the video URL into the `VIDEO LINK` field.
 3. Choose a destination folder, or keep the default one.
-4. Optionally set the night mode start time using the `HH:MM` format.
-5. Click `DOWNLOAD VIDEO` and wait for the download to finish.
+4. Click `CHECK VIDEO` to inspect the formats and subtitles available for that link.
+5. Use the `QUALITY` button to cycle through the available quality levels.
+6. Use the `SUBTITLES` button to choose from the available subtitle languages.
+7. Optionally set the night mode start time using the `HH:MM` format.
+8. Click `DOWNLOAD VIDEO` and wait for the download to finish.
 
 The default folder is the directory from which the application is launched. Each video is organized into a subfolder using this format:
 

@@ -34,6 +34,17 @@ class VideoMeadow(tk.Tk):
         "red": "#c86f5e",
         "line": "#d8c9aa",
     }
+    QUALITY_OPTIONS = (
+        ("QUALITY: BEST", "bestvideo+bestaudio/best"),
+        ("QUALITY: 1080P", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"),
+        ("QUALITY: 720P", "bestvideo[height<=720]+bestaudio/best[height<=720]/best"),
+    )
+    SUBTITLE_OPTIONS = (
+        ("SUBTITLES: OFF", None),
+        ("SUBTITLES: ALL", ["all"]),
+        ("SUBTITLES: IT", ["it"]),
+        ("SUBTITLES: EN", ["en"]),
+    )
 
     def __init__(self) -> None:
         super().__init__()
@@ -45,6 +56,15 @@ class VideoMeadow(tk.Tk):
         self.url_var = tk.StringVar()
         self.folder_var = tk.StringVar(value=str(Path.cwd()))
         self.night_start_var = tk.StringVar(value="20:00")
+        self.quality_index = 0
+        self.subtitle_index = 0
+        self.quality_options = list(self.QUALITY_OPTIONS)
+        self.subtitle_options = list(self.SUBTITLE_OPTIONS)
+        self.options_ready = False
+        self.checking = False
+        self.metadata_url = ""
+        self.quality_var = tk.StringVar(value="QUALITY: CHECK VIDEO")
+        self.subtitle_var = tk.StringVar(value="SUBTITLES: CHECK VIDEO")
         self.progress_var = tk.DoubleVar(value=0)
         self.status_var = tk.StringVar(value="Ready for the next harvest")
         self.detail_var = tk.StringVar(value="Paste a link and press DOWNLOAD VIDEO")
@@ -53,6 +73,7 @@ class VideoMeadow(tk.Tk):
 
         self._configure_styles()
         self._build_interface()
+        self.url_var.trace_add("write", self._on_url_changed)
         self.night_start_var.trace_add("write", self._on_night_time_changed)
         self.after(100, self._process_events)
         self.after(30_000, self._refresh_sky)
@@ -92,6 +113,16 @@ class VideoMeadow(tk.Tk):
             font=("Courier New", 9, "bold"),
         )
         style.map("Folder.TButton", background=[("active", "#f0c976")])
+        style.configure(
+            "Option.TButton",
+            background=self.COLORS["paper"],
+            foreground=self.COLORS["brown"],
+            bordercolor=self.COLORS["line"],
+            focusthickness=0,
+            padding=(10, 7),
+            font=("Courier New", 8, "bold"),
+        )
+        style.map("Option.TButton", background=[("active", "#f4e8c9"), ("disabled", "#eee8d8")])
 
     def _build_interface(self) -> None:
         self._build_header()
@@ -145,6 +176,35 @@ class VideoMeadow(tk.Tk):
             folder_row, text="CHOOSE FOLDER", command=self.choose_folder, style="Folder.TButton"
         )
         self.folder_button.pack(side="left", padx=(10, 0))
+
+        options_row = tk.Frame(body, bg=self.COLORS["cream"])
+        options_row.pack(fill="x", pady=(0, 18))
+        self._field_label(options_row, "DOWNLOAD OPTIONS:")
+        option_buttons = tk.Frame(options_row, bg=self.COLORS["cream"])
+        option_buttons.pack(fill="x", pady=(3, 0))
+        self.check_button = ttk.Button(
+            option_buttons,
+            text="CHECK VIDEO",
+            command=self.check_video,
+            style="Folder.TButton",
+        )
+        self.check_button.pack(side="left")
+        self.quality_button = ttk.Button(
+            option_buttons,
+            textvariable=self.quality_var,
+            command=self.cycle_quality,
+            style="Option.TButton",
+        )
+        self.quality_button.pack(side="left", padx=(10, 0))
+        self.subtitle_button = ttk.Button(
+            option_buttons,
+            textvariable=self.subtitle_var,
+            command=self.cycle_subtitles,
+            style="Option.TButton",
+        )
+        self.subtitle_button.pack(side="left", padx=(10, 0))
+        self.quality_button.configure(state="disabled")
+        self.subtitle_button.configure(state="disabled")
 
         settings = tk.Frame(body, bg=self.COLORS["cream"])
         settings.pack(fill="x", pady=(0, 20))
@@ -262,6 +322,8 @@ class VideoMeadow(tk.Tk):
             canvas.create_rectangle(x, 135, x + 3, 140, fill="#88a55e" if night else "#a4bd62", outline="")
             canvas.create_rectangle(x + 8, 143, x + 13, 147, fill="#31553e" if night else "#598b48", outline="")
         self._draw_media_on_grass(canvas, width, night, scale_x)
+        if night:
+            self._draw_foreground_pirate(canvas, sx(304), 113, scale_x)
 
         if night:
             self._draw_night_sky(canvas, width, scale_x)
@@ -302,6 +364,44 @@ class VideoMeadow(tk.Tk):
         canvas.create_rectangle(x + s(29), y - s(1), x + s(30), y, fill=sail, outline="")
         canvas.create_rectangle(x + s(6), y + s(19), x + s(17), y + s(20), fill="#d1ecdf" if night else "#dff3df", outline="")
         canvas.create_rectangle(x + s(29), y + s(19), x + s(39), y + s(20), fill="#d1ecdf" if night else "#dff3df", outline="")
+
+    @staticmethod
+    def _draw_foreground_pirate(canvas: tk.Canvas, x: int, y: int, scale_x: float = 1.0) -> None:
+        """Draw a tiny foreground pirate carrying a box of discs."""
+        # The header keeps a fixed height, so cap vertical growth on very wide windows.
+        scale = max(0.85, min(scale_x, 1.0))
+        s = lambda value: value * scale
+        coat = "#202b3d"
+        coat_light = "#33465d"
+        skin = "#d4936e"
+        hat = "#151b2a"
+        bandana = "#a34e55"
+        wood = "#8b6546"
+        wood_dark = "#543e37"
+
+        # Boots, coat and a round head.
+        canvas.create_rectangle(x + s(8), y + s(27), x + s(14), y + s(36), fill=hat, outline="")
+        canvas.create_rectangle(x + s(20), y + s(27), x + s(26), y + s(36), fill=hat, outline="")
+        canvas.create_polygon(
+            x + s(7), y + s(12), x + s(26), y + s(12), x + s(29), y + s(29),
+            x + s(6), y + s(29), fill=coat, outline="",
+        )
+        canvas.create_rectangle(x + s(12), y + s(14), x + s(16), y + s(28), fill=coat_light, outline="")
+        canvas.create_oval(x + s(10), y + s(1), x + s(24), y + s(15), fill=skin, outline="")
+        # Hat, red bandana and eye patch.
+        canvas.create_rectangle(x + s(7), y - s(2), x + s(27), y + s(3), fill=hat, outline="")
+        canvas.create_polygon(x + s(11), y - s(7), x + s(24), y - s(7), x + s(27), y + s(1), x + s(8), y + s(1), fill=hat, outline="")
+        canvas.create_rectangle(x + s(12), y + s(3), x + s(23), y + s(5), fill=bandana, outline="")
+        canvas.create_rectangle(x + s(18), y + s(7), x + s(23), y + s(9), fill=hat, outline="")
+        canvas.create_rectangle(x + s(21), y + s(10), x + s(22), y + s(11), fill="#f5d18b", outline="")
+        # One arm holds the crate of shiny discs.
+        canvas.create_rectangle(x + s(23), y + s(17), x + s(34), y + s(21), fill=coat_light, outline="")
+        canvas.create_rectangle(x + s(30), y + s(18), x + s(35), y + s(22), fill=skin, outline="")
+        canvas.create_rectangle(x + s(31), y + s(20), x + s(47), y + s(30), fill=wood, outline="")
+        canvas.create_rectangle(x + s(31), y + s(20), x + s(47), y + s(22), fill=wood_dark, outline="")
+        canvas.create_rectangle(x + s(33), y + s(27), x + s(45), y + s(28), fill=wood_dark, outline="")
+        for disc_x, disc_color in ((34, "#c9a5d9"), (38, "#7bcac4"), (42, "#e5c76e")):
+            canvas.create_oval(x + s(disc_x), y + s(20), x + s(disc_x + 3), y + s(23), fill=disc_color, outline="")
 
     def _draw_night_sky(self, canvas: tk.Canvas, width: int, scale_x: float = 1.0) -> None:
         sx = lambda value: int(value * scale_x)
@@ -416,6 +516,111 @@ class VideoMeadow(tk.Tk):
             card, variable=self.progress_var, maximum=100, style="Meadow.Horizontal.TProgressbar"
         ).pack(fill="x", pady=(12, 2))
 
+    def _on_url_changed(self, *_args: str) -> None:
+        current_url = self.url_var.get().strip()
+        if current_url != self.metadata_url:
+            self.options_ready = False
+            self.quality_index = 0
+            self.subtitle_index = 0
+            self.quality_var.set("QUALITY: CHECK VIDEO")
+            self.subtitle_var.set("SUBTITLES: CHECK VIDEO")
+            if not self.downloading and not self.checking:
+                self.quality_button.configure(state="disabled")
+                self.subtitle_button.configure(state="disabled")
+
+    def cycle_quality(self) -> None:
+        if not self.options_ready:
+            return
+        self.quality_index = (self.quality_index + 1) % len(self.quality_options)
+        self.quality_var.set(self.quality_options[self.quality_index][0])
+
+    def cycle_subtitles(self) -> None:
+        if not self.options_ready:
+            return
+        self.subtitle_index = (self.subtitle_index + 1) % len(self.subtitle_options)
+        self.subtitle_var.set(self.subtitle_options[self.subtitle_index][0])
+
+    def check_video(self) -> None:
+        if self.downloading or self.checking:
+            return
+        url = self.url_var.get().strip()
+        if not url:
+            messagebox.showwarning(APP_TITLE, "Paste the video link first.")
+            self.url_entry.focus_set()
+            return
+
+        self.checking = True
+        self.options_ready = False
+        self.check_button.configure(state="disabled")
+        self.quality_button.configure(state="disabled")
+        self.subtitle_button.configure(state="disabled")
+        self.status_var.set("Checking the video…")
+        self.detail_var.set("Finding available formats and subtitles")
+        threading.Thread(target=self._probe_worker, args=(url,), daemon=True).start()
+
+    def _probe_worker(self, url: str) -> None:
+        probe_options = {"quiet": True, "no_warnings": True, "noplaylist": True}
+        try:
+            with yt_dlp.YoutubeDL(probe_options) as downloader:
+                info = downloader.extract_info(url, download=False)
+            self.queue.put(("metadata", (url, info)))
+        except UnsupportedError:
+            self.queue.put(("metadata_error", "This site or URL type is not supported by yt-dlp."))
+        except DownloadError as error:
+            self.queue.put(("metadata_error", f"Could not inspect this video: {error}"))
+        except Exception as error:  # noqa: BLE001 - keep probe errors inside the GUI
+            self.queue.put(("metadata_error", f"Could not inspect this video: {error}"))
+
+    def _apply_video_metadata(self, url: str, info: dict[str, Any]) -> None:
+        if url != self.url_var.get().strip():
+            self.checking = False
+            self.check_button.configure(state="normal")
+            return
+        heights = sorted(
+            {int(fmt["height"]) for fmt in (info.get("formats") or []) if fmt.get("height")},
+            reverse=True,
+        )
+        quality_options = [("QUALITY: BEST", "bestvideo+bestaudio/best")]
+        for height in heights:
+            if len(quality_options) >= 7:
+                break
+            quality_options.append(
+                (
+                    f"QUALITY: {height}P",
+                    f"bestvideo[height<={height}]+bestaudio/best[height<={height}]/best",
+                )
+            )
+
+        subtitle_codes = sorted(
+            set(info.get("subtitles") or {}) | set(info.get("automatic_captions") or {})
+        )
+        subtitle_options: list[tuple[str, list[str] | None]] = [("SUBTITLES: OFF", None)]
+        if subtitle_codes:
+            subtitle_options.append(("SUBTITLES: ALL", ["all"]))
+            preferred_codes = []
+            for prefix in ("it", "en"):
+                preferred_codes.extend(code for code in subtitle_codes if code.lower().startswith(prefix))
+            for code in preferred_codes + [code for code in subtitle_codes if code not in preferred_codes]:
+                label = f"SUBTITLES: {code.upper()}"
+                if (label, [code]) not in subtitle_options:
+                    subtitle_options.append((label, [code]))
+
+        self.quality_options = quality_options
+        self.subtitle_options = subtitle_options
+        self.quality_index = 0
+        self.subtitle_index = 0
+        self.quality_var.set(quality_options[0][0])
+        self.subtitle_var.set(subtitle_options[0][0])
+        self.metadata_url = url
+        self.options_ready = True
+        self.checking = False
+        self.check_button.configure(state="normal")
+        self.quality_button.configure(state="normal")
+        self.subtitle_button.configure(state="normal")
+        title = info.get("title") or "video"
+        self.status_var.set("Video options ready!")
+        self.detail_var.set(f"{title[:52]} · {len(heights)} quality levels")
+
     def choose_folder(self) -> None:
         selected = filedialog.askdirectory(initialdir=self.folder_var.get(), title="Choose where to save videos")
         if selected:
@@ -448,6 +653,10 @@ class VideoMeadow(tk.Tk):
         if not self.folder_var.get().strip():
             messagebox.showwarning(APP_TITLE, "Choose a folder where the video should be saved.")
             return
+        if not self.options_ready or self.metadata_url != url:
+            self.check_video()
+            messagebox.showinfo(APP_TITLE, "Check the video first, then choose the available quality and subtitle options.")
+            return
 
         self.downloading = True
         self.progress_var.set(0)
@@ -455,12 +664,26 @@ class VideoMeadow(tk.Tk):
         self.detail_var.set("Preparing")
         self.download_button.configure(state="disabled")
         self.folder_button.configure(state="disabled")
-        threading.Thread(target=self._download_worker, args=(url, folder), daemon=True).start()
+        self.quality_button.configure(state="disabled")
+        self.subtitle_button.configure(state="disabled")
+        quality_format = self.quality_options[self.quality_index][1]
+        subtitle_languages = self.subtitle_options[self.subtitle_index][1]
+        threading.Thread(
+            target=self._download_worker,
+            args=(url, folder, quality_format, subtitle_languages),
+            daemon=True,
+        ).start()
 
-    def _download_worker(self, url: str, output_dir: Path) -> None:
+    def _download_worker(
+        self,
+        url: str,
+        output_dir: Path,
+        quality_format: str,
+        subtitle_languages: list[str] | None,
+    ) -> None:
         output_dir.mkdir(parents=True, exist_ok=True)
         options = {
-            "format": "bestvideo+bestaudio/best",
+            "format": quality_format,
             "outtmpl": str(output_dir / "%(title)s [%(id)s]" / "%(title)s [%(id)s].%(ext)s"),
             "merge_output_format": "mp4",
             "noplaylist": True,
@@ -468,6 +691,14 @@ class VideoMeadow(tk.Tk):
             "quiet": True,
             "no_warnings": True,
         }
+        if subtitle_languages:
+            options.update(
+                {
+                    "writesubtitles": True,
+                    "writeautomaticsub": True,
+                    "subtitleslangs": subtitle_languages,
+                }
+            )
         try:
             with yt_dlp.YoutubeDL(options) as downloader:
                 downloader.download([url])
@@ -503,6 +734,18 @@ class VideoMeadow(tk.Tk):
                     percent, detail = payload
                     self.progress_var.set(percent)
                     self.detail_var.set(detail)
+                elif event == "metadata":
+                    url, info = payload
+                    self._apply_video_metadata(url, info)
+                elif event == "metadata_error":
+                    self.checking = False
+                    self.options_ready = False
+                    self.check_button.configure(state="normal")
+                    self.quality_button.configure(state="disabled")
+                    self.subtitle_button.configure(state="disabled")
+                    self.status_var.set("Could not inspect the video")
+                    self.detail_var.set("Check the link and try again")
+                    messagebox.showerror(APP_TITLE, payload)
                 elif event == "done":
                     self.downloading = False
                     self.progress_var.set(100)
@@ -524,6 +767,10 @@ class VideoMeadow(tk.Tk):
         state = "normal" if enabled else "disabled"
         self.download_button.configure(state=state)
         self.folder_button.configure(state=state)
+        self.check_button.configure(state=state)
+        option_state = state if enabled and self.options_ready else "disabled"
+        self.quality_button.configure(state=option_state)
+        self.subtitle_button.configure(state=option_state)
 
 
 if __name__ == "__main__":
