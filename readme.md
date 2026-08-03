@@ -5,10 +5,9 @@ Video Meadow is a small desktop application for downloading videos through a GUI
 The interface includes:
 
 - background downloads with a progress bar;
+- quality and subtitles options;
 - destination folder selection;
-- dynamic day/night scenery;
-- pixel-art sea, pirate ship, CDs, and DVDs;
-- a clickable link to the `yt-dlp` project and friendly credits.
+- dynamic day/night scenery.
 
 ## Requirements 🧰
 
