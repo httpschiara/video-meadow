@@ -232,6 +232,9 @@ class VideoMeadow(tk.Tk):
     def _draw_header(self, _event: tk.Event | None = None) -> None:
         canvas = self.header_canvas
         width = max(canvas.winfo_width(), 680)
+        base_width = 760
+        scale_x = width / base_width
+        sx = lambda value: int(value * scale_x)
         canvas.delete("all")
         night = self._is_night()
         sky = "#182b45" if night else self.COLORS["sky"]
@@ -244,69 +247,75 @@ class VideoMeadow(tk.Tk):
         # Blocky hills and grass for a light pixel-art atmosphere.
         canvas.create_rectangle(0, 92, width, 127, fill=sea, outline="")
         canvas.create_rectangle(0, 92, width, 95, fill=sea_light, outline="")
-        for x in range(12, width, 57):
+        for base_x in range(12, base_width, 57):
+            x = sx(base_x)
             canvas.create_rectangle(x, 104 + (x % 3) * 3, x + 21, 106 + (x % 3) * 3, fill=sea_light, outline="")
             canvas.create_rectangle(x + 28, 115 + (x % 4) * 2, x + 40, 117 + (x % 4) * 2, fill=sea_light, outline="")
+        self._draw_pirate_ship(canvas, sx(550), 76, night, scale_x)
         canvas.create_polygon(
-            0, 115, 95, 76, 178, 109, 275, 63, 382, 111, 480, 73, 590, 111, 700, 55, width, 108, width, 127, 0, 127,
+            sx(0), 115, sx(95), 76, sx(178), 109, sx(275), 63, sx(382), 111, sx(480), 73, sx(590), 111, sx(700), 55, sx(base_width), 108, sx(base_width), 127, sx(0), 127,
             fill=hill, outline="",
         )
-        self._draw_pirate_ship(canvas, width - 210, 76, night)
         canvas.create_rectangle(0, 124, width, 150, fill=grass, outline="")
-        for x in range(15, width, 34):
+        for base_x in range(15, base_width, 34):
+            x = sx(base_x)
             canvas.create_rectangle(x, 135, x + 3, 140, fill="#88a55e" if night else "#a4bd62", outline="")
             canvas.create_rectangle(x + 8, 143, x + 13, 147, fill="#31553e" if night else "#598b48", outline="")
-        self._draw_media_on_grass(canvas, width, night)
+        self._draw_media_on_grass(canvas, width, night, scale_x)
 
         if night:
-            self._draw_night_sky(canvas, width)
+            self._draw_night_sky(canvas, width, scale_x)
         else:
-            canvas.create_oval(width - 128, 18, width - 80, 66, fill=self.COLORS["gold"], outline="")
-            self._cloud(canvas, 62, 32, sky)
-            self._cloud(canvas, width - 295, 41, sky)
+            canvas.create_oval(sx(632), 18, sx(680), 66, fill=self.COLORS["gold"], outline="")
+            self._cloud(canvas, sx(62), 32, sky, scale_x)
+            self._cloud(canvas, sx(465), 41, sky, scale_x)
 
         canvas.create_text(
-            36, 35, text="VIDEO MEADOW", anchor="w", fill="#fff1c4" if night else self.COLORS["brown_dark"],
+            sx(36), 35, text="VIDEO MEADOW", anchor="w", fill="#fff1c4" if night else self.COLORS["brown_dark"],
             font=("Courier New", 22, "bold"),
         )
         canvas.create_text(
-            38, 55, text="your little video barn", anchor="w", fill="#d5ddb1" if night else self.COLORS["ink"],
+            sx(38), 55, text="your little video barn", anchor="w", fill="#d5ddb1" if night else self.COLORS["ink"],
             font=("Courier New", 10),
         )
 
     @staticmethod
-    def _draw_pirate_ship(canvas: tk.Canvas, x: int, y: int, night: bool) -> None:
+    def _draw_pirate_ship(canvas: tk.Canvas, x: int, y: int, night: bool, scale_x: float = 1.0) -> None:
         """Draw a small pirate ship on the horizon line."""
+        scale = max(0.85, min(scale_x, 1.25))
+        s = lambda value: value * scale
         hull = "#1b2734" if night else "#4b352e"
         wood = "#302b32" if night else "#765440"
         sail = "#e2d7b1" if night else "#f6e7bd"
         flag = "#9e554b" if night else "#9d4439"
         skull = "#26313a" if night else "#5a4033"
 
-        canvas.create_polygon(x, y + 11, x + 38, y + 11, x + 31, y + 18, x + 8, y + 18, fill=hull, outline="")
-        canvas.create_rectangle(x + 18, y - 19, x + 21, y + 12, fill=wood, outline="")
-        canvas.create_polygon(x + 17, y - 15, x + 3, y + 7, x + 17, y + 7, fill=sail, outline="")
-        canvas.create_polygon(x + 22, y - 8, x + 35, y + 6, x + 22, y + 6, fill=sail, outline="")
-        canvas.create_polygon(x + 21, y - 19, x + 31, y - 16, x + 21, y - 12, fill=flag, outline="")
+        canvas.create_polygon(x, y + s(11), x + s(38), y + s(11), x + s(31), y + s(18), x + s(8), y + s(18), fill=hull, outline="")
+        canvas.create_rectangle(x + s(18), y - s(19), x + s(21), y + s(12), fill=wood, outline="")
+        canvas.create_polygon(x + s(17), y - s(15), x + s(3), y + s(7), x + s(17), y + s(7), fill=sail, outline="")
+        canvas.create_polygon(x + s(22), y - s(8), x + s(35), y + s(6), x + s(22), y + s(6), fill=sail, outline="")
+        canvas.create_polygon(x + s(21), y - s(19), x + s(31), y - s(16), x + s(21), y - s(12), fill=flag, outline="")
         # Pixel-art skull on the main sail.
-        canvas.create_rectangle(x + 25, y - 2, x + 31, y + 3, fill=skull, outline="")
-        canvas.create_rectangle(x + 27, y + 3, x + 29, y + 5, fill=skull, outline="")
-        canvas.create_rectangle(x + 26, y - 1, x + 27, y, fill=sail, outline="")
-        canvas.create_rectangle(x + 29, y - 1, x + 30, y, fill=sail, outline="")
-        canvas.create_rectangle(x + 6, y + 19, x + 17, y + 20, fill="#d1ecdf" if night else "#dff3df", outline="")
-        canvas.create_rectangle(x + 29, y + 19, x + 39, y + 20, fill="#d1ecdf" if night else "#dff3df", outline="")
+        canvas.create_rectangle(x + s(25), y - s(2), x + s(31), y + s(3), fill=skull, outline="")
+        canvas.create_rectangle(x + s(27), y + s(3), x + s(29), y + s(5), fill=skull, outline="")
+        canvas.create_rectangle(x + s(26), y - s(1), x + s(27), y, fill=sail, outline="")
+        canvas.create_rectangle(x + s(29), y - s(1), x + s(30), y, fill=sail, outline="")
+        canvas.create_rectangle(x + s(6), y + s(19), x + s(17), y + s(20), fill="#d1ecdf" if night else "#dff3df", outline="")
+        canvas.create_rectangle(x + s(29), y + s(19), x + s(39), y + s(20), fill="#d1ecdf" if night else "#dff3df", outline="")
 
-    def _draw_night_sky(self, canvas: tk.Canvas, width: int) -> None:
-        moon_x = width - 105
+    def _draw_night_sky(self, canvas: tk.Canvas, width: int, scale_x: float = 1.0) -> None:
+        sx = lambda value: int(value * scale_x)
+        moon_x = sx(655)
         canvas.create_oval(moon_x - 25, 14, moon_x + 25, 64, fill="#f8e6a8", outline="")
         canvas.create_oval(moon_x - 12, 9, moon_x + 31, 52, fill="#182b45", outline="")
         stars = [(58, 23), (132, 18), (183, 48), (246, 27), (320, 18), (392, 47), (466, 25), (542, 17), (625, 49)]
-        for x, y in stars:
+        for base_x, y in stars:
+            x = sx(base_x)
             canvas.create_rectangle(x, y, x + 3, y + 3, fill="#fff4bd", outline="")
             canvas.create_rectangle(x - 2, y + 1, x + 5, y + 2, fill="#fff4bd", outline="")
 
     @staticmethod
-    def _draw_media_on_grass(canvas: tk.Canvas, width: int, night: bool) -> None:
+    def _draw_media_on_grass(canvas: tk.Canvas, width: int, night: bool, scale_x: float = 1.0) -> None:
         """Draw scattered pixel-art CDs and DVDs in the foreground grass."""
         discs = [
             (48, 130, 12, "#d78c88"),
@@ -322,7 +331,10 @@ class VideoMeadow(tk.Tk):
             if night
             else ["#e9a7c6", "#76cfc4", "#f1d37c", "#a9a0df"]
         )
-        for x, y, size, color in discs:
+        disc_scale = max(0.85, min(scale_x, 1.25))
+        for base_x, y, base_size, color in discs:
+            x = int(base_x * scale_x)
+            size = max(7, int(base_size * disc_scale))
             if x > width - 4:
                 continue
             rim = "#aab47a" if night else color
@@ -368,13 +380,15 @@ class VideoMeadow(tk.Tk):
             self.after(30_000, self._refresh_sky)
 
     @staticmethod
-    def _cloud(canvas: tk.Canvas, x: int, y: int, sky: str) -> None:
+    def _cloud(canvas: tk.Canvas, x: int, y: int, sky: str, scale_x: float = 1.0) -> None:
         cloud = "#f7fbf1"
-        canvas.create_rectangle(x, y + 10, x + 70, y + 25, fill=cloud, outline="")
-        canvas.create_oval(x + 8, y, x + 35, y + 22, fill=cloud, outline="")
-        canvas.create_oval(x + 27, y - 8, x + 57, y + 23, fill=cloud, outline="")
-        canvas.create_oval(x + 48, y + 5, x + 74, y + 24, fill=cloud, outline="")
-        canvas.create_rectangle(x + 13, y + 21, x + 67, y + 26, fill=sky, outline="")
+        scale = max(0.85, min(scale_x, 1.25))
+        s = lambda value: value * scale
+        canvas.create_rectangle(x, y + s(10), x + s(70), y + s(25), fill=cloud, outline="")
+        canvas.create_oval(x + s(8), y, x + s(35), y + s(22), fill=cloud, outline="")
+        canvas.create_oval(x + s(27), y - s(8), x + s(57), y + s(23), fill=cloud, outline="")
+        canvas.create_oval(x + s(48), y + s(5), x + s(74), y + s(24), fill=cloud, outline="")
+        canvas.create_rectangle(x + s(13), y + s(21), x + s(67), y + s(26), fill=sky, outline="")
 
     def _field_label(self, parent: tk.Widget, text: str) -> None:
         tk.Label(
