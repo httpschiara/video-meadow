@@ -5,15 +5,17 @@ Video Meadow is a small desktop application for downloading videos through a GUI
 The interface includes:
 
 - background downloads with a progress bar;
-- quality and subtitles options;
+- video quality, audio-only, and subtitle options;
 - destination folder selection;
-- dynamic day/night scenery.
+- dynamic day/night scenery;
+- a pirate-themed desktop icon.
 
 ## Requirements 🧰
 
 - Python 3.10 or later;
 - Tkinter, normally included with the standard Python installation;
-- `yt-dlp[default]`.
+- `yt-dlp[default]`;
+- `ffmpeg` and `ffprobe`, required to convert audio-only downloads to MP3.
 
 ## Quick start 🚜
 
@@ -31,6 +33,19 @@ venv\Scripts\python.exe -m pip install -U "yt-dlp[default]"
 venv\Scripts\python.exe download_videos.py
 ```
 
+## Windows desktop shortcut 🖥️
+
+For a one-time setup, double-click `setup_video_meadow.bat`. It will:
+
+1. create the local virtual environment;
+2. install the Python dependencies from `requirements.txt`;
+3. check whether `ffmpeg` is available for MP3 conversion;
+4. create a `Video Meadow` shortcut on the desktop using the bundled icon.
+
+After setup, launch the app by double-clicking the desktop shortcut or `run_video_meadow.bat`.
+
+`ffmpeg` and `ffprobe` must be available in `PATH` to use `AUDIO ONLY` and convert the result to MP3.
+
 ## Usage 🎬
 
 1. Launch the application.
@@ -38,15 +53,18 @@ venv\Scripts\python.exe download_videos.py
 3. Choose a destination folder, or keep the default one.
 4. Click `CHECK VIDEO` to inspect the formats and subtitles available for that link.
 5. Use the `QUALITY` button to cycle through the available quality levels.
-6. Use the `SUBTITLES` button to choose from the available subtitle languages.
-7. Optionally set the night mode start time using the `HH:MM` format.
-8. Click `DOWNLOAD VIDEO` and wait for the download to finish.
+6. Choose a subtitle language from the `SUBTITLES` dropdown.
+7. Toggle the separate `AUDIO ONLY` button to download just the best available audio track and convert it to MP3.
+8. Optionally set the night mode start time using the `HH:MM` format.
+9. Click `DOWNLOAD VIDEO` or `DOWNLOAD AUDIO` and wait for the download to finish.
 
-The default folder is the directory from which the application is launched. Each video is organized into a subfolder using this format:
+The default folder is the directory from which the application is launched. Each download is organized into a subfolder using this format:
 
 ```text
 [Video title] [Video ID]/[Video title] [Video ID].mp4
 ```
+
+Video downloads are saved as MP4 files; audio-only downloads are converted to 192 kbps MP3 files.
 
 ## Credits 💛
 

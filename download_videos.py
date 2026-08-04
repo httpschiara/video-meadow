@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import queue
+import shutil
 import threading
 import tkinter as tk
 import webbrowser
@@ -63,8 +64,11 @@ class VideoMeadow(tk.Tk):
         self.options_ready = False
         self.checking = False
         self.metadata_url = ""
-        self.quality_var = tk.StringVar(value="QUALITY: CHECK VIDEO")
-        self.subtitle_var = tk.StringVar(value="SUBTITLES: CHECK VIDEO")
+        self.audio_available = False
+        self.audio_only_var = tk.BooleanVar(value=False)
+        self.quality_var = tk.StringVar(value="QUALITY: CHECK")
+        self.subtitle_var = tk.StringVar(value="SUBTITLES: CHECK")
+        self.download_action_var = tk.StringVar(value="DOWNLOAD VIDEO  ▶")
         self.progress_var = tk.DoubleVar(value=0)
         self.status_var = tk.StringVar(value="Ready for the next harvest")
         self.detail_var = tk.StringVar(value="Paste a link and press DOWNLOAD VIDEO")
@@ -74,6 +78,7 @@ class VideoMeadow(tk.Tk):
         self._configure_styles()
         self._build_interface()
         self.url_var.trace_add("write", self._on_url_changed)
+        self.audio_only_var.trace_add("write", self._on_audio_only_changed)
         self.night_start_var.trace_add("write", self._on_night_time_changed)
         self.after(100, self._process_events)
         self.after(30_000, self._refresh_sky)
@@ -123,6 +128,17 @@ class VideoMeadow(tk.Tk):
             font=("Courier New", 8, "bold"),
         )
         style.map("Option.TButton", background=[("active", "#f4e8c9"), ("disabled", "#eee8d8")])
+        style.configure(
+            "Option.TCombobox",
+            padding=(10, 7),
+            foreground=self.COLORS["brown"],
+            fieldbackground=self.COLORS["paper"],
+            background=self.COLORS["paper"],
+            bordercolor=self.COLORS["line"],
+            arrowcolor=self.COLORS["brown"],
+            font=("Courier New", 8, "bold"),
+        )
+        style.map("Option.TCombobox", fieldbackground=[("readonly", self.COLORS["paper"])])
 
     def _build_interface(self) -> None:
         self._build_header()
@@ -194,17 +210,28 @@ class VideoMeadow(tk.Tk):
             textvariable=self.quality_var,
             command=self.cycle_quality,
             style="Option.TButton",
+            width=16,
         )
         self.quality_button.pack(side="left", padx=(10, 0))
-        self.subtitle_button = ttk.Button(
+        self.audio_only_button = ttk.Button(
+            option_buttons,
+            text="AUDIO ONLY: OFF",
+            command=self.toggle_audio_only,
+            style="Option.TButton",
+            width=16,
+        )
+        self.audio_only_button.pack(side="left", padx=(10, 0))
+        self.subtitle_combo = ttk.Combobox(
             option_buttons,
             textvariable=self.subtitle_var,
-            command=self.cycle_subtitles,
-            style="Option.TButton",
+            values=(),
+            state="disabled",
+            width=22,
+            style="Option.TCombobox",
         )
-        self.subtitle_button.pack(side="left", padx=(10, 0))
+        self.subtitle_combo.pack(side="left", padx=(10, 0))
         self.quality_button.configure(state="disabled")
-        self.subtitle_button.configure(state="disabled")
+        self.audio_only_button.configure(state="disabled")
 
         settings = tk.Frame(body, bg=self.COLORS["cream"])
         settings.pack(fill="x", pady=(0, 20))
@@ -239,7 +266,7 @@ class VideoMeadow(tk.Tk):
         actions = tk.Frame(body, bg=self.COLORS["cream"])
         actions.pack(fill="x", pady=(21, 0))
         self.download_button = ttk.Button(
-            actions, text="DOWNLOAD VIDEO  ▶", command=self.start_download, style="Meadow.TButton"
+            actions, textvariable=self.download_action_var, command=self.start_download, style="Meadow.TButton"
         )
         self.download_button.pack(side="left")
         self.open_button = ttk.Button(
@@ -522,11 +549,13 @@ class VideoMeadow(tk.Tk):
             self.options_ready = False
             self.quality_index = 0
             self.subtitle_index = 0
-            self.quality_var.set("QUALITY: CHECK VIDEO")
-            self.subtitle_var.set("SUBTITLES: CHECK VIDEO")
+            self.quality_var.set("QUALITY: CHECK")
+            self.subtitle_var.set("SUBTITLES: CHECK")
+            self.audio_only_var.set(False)
             if not self.downloading and not self.checking:
                 self.quality_button.configure(state="disabled")
-                self.subtitle_button.configure(state="disabled")
+                self.audio_only_button.configure(state="disabled")
+                self.subtitle_combo.configure(state="disabled")
 
     def cycle_quality(self) -> None:
         if not self.options_ready:
@@ -534,11 +563,14 @@ class VideoMeadow(tk.Tk):
         self.quality_index = (self.quality_index + 1) % len(self.quality_options)
         self.quality_var.set(self.quality_options[self.quality_index][0])
 
-    def cycle_subtitles(self) -> None:
-        if not self.options_ready:
-            return
-        self.subtitle_index = (self.subtitle_index + 1) % len(self.subtitle_options)
-        self.subtitle_var.set(self.subtitle_options[self.subtitle_index][0])
+    def _on_audio_only_changed(self, *_args: str) -> None:
+        enabled = self.audio_only_var.get()
+        self.audio_only_button.configure(text="AUDIO ONLY: ON" if enabled else "AUDIO ONLY: OFF")
+        self.download_action_var.set("DOWNLOAD AUDIO  ▶" if enabled else "DOWNLOAD VIDEO  ▶")
+
+    def toggle_audio_only(self) -> None:
+        if self.options_ready and self.audio_available:
+            self.audio_only_var.set(not self.audio_only_var.get())
 
     def check_video(self) -> None:
         if self.downloading or self.checking:
@@ -553,7 +585,8 @@ class VideoMeadow(tk.Tk):
         self.options_ready = False
         self.check_button.configure(state="disabled")
         self.quality_button.configure(state="disabled")
-        self.subtitle_button.configure(state="disabled")
+        self.audio_only_button.configure(state="disabled")
+        self.subtitle_combo.configure(state="disabled")
         self.status_var.set("Checking the video…")
         self.detail_var.set("Finding available formats and subtitles")
         threading.Thread(target=self._probe_worker, args=(url,), daemon=True).start()
@@ -590,6 +623,7 @@ class VideoMeadow(tk.Tk):
                     f"bestvideo[height<={height}]+bestaudio/best[height<={height}]/best",
                 )
             )
+        has_audio = any(fmt.get("acodec") not in (None, "none") for fmt in (info.get("formats") or []))
 
         subtitle_codes = sorted(
             set(info.get("subtitles") or {}) | set(info.get("automatic_captions") or {})
@@ -607,16 +641,21 @@ class VideoMeadow(tk.Tk):
 
         self.quality_options = quality_options
         self.subtitle_options = subtitle_options
+        self.audio_available = has_audio
         self.quality_index = 0
         self.subtitle_index = 0
         self.quality_var.set(quality_options[0][0])
         self.subtitle_var.set(subtitle_options[0][0])
+        self.subtitle_combo["values"] = [label for label, _languages in subtitle_options]
+        self.subtitle_combo.current(0)
+        self.subtitle_combo.configure(state="readonly" if subtitle_codes else "disabled")
         self.metadata_url = url
         self.options_ready = True
         self.checking = False
         self.check_button.configure(state="normal")
         self.quality_button.configure(state="normal")
-        self.subtitle_button.configure(state="normal")
+        self.audio_only_var.set(False)
+        self.audio_only_button.configure(state="normal" if has_audio else "disabled")
         title = info.get("title") or "video"
         self.status_var.set("Video options ready!")
         self.detail_var.set(f"{title[:52]} · {len(heights)} quality levels")
@@ -660,17 +699,19 @@ class VideoMeadow(tk.Tk):
 
         self.downloading = True
         self.progress_var.set(0)
-        self.status_var.set("Harvesting your video…")
+        audio_only = self.audio_only_var.get()
+        self.status_var.set("Harvesting your audio…" if audio_only else "Harvesting your video…")
         self.detail_var.set("Preparing")
         self.download_button.configure(state="disabled")
         self.folder_button.configure(state="disabled")
         self.quality_button.configure(state="disabled")
-        self.subtitle_button.configure(state="disabled")
+        self.audio_only_button.configure(state="disabled")
+        self.subtitle_combo.configure(state="disabled")
         quality_format = self.quality_options[self.quality_index][1]
-        subtitle_languages = self.subtitle_options[self.subtitle_index][1]
+        subtitle_languages = dict(self.subtitle_options).get(self.subtitle_var.get())
         threading.Thread(
             target=self._download_worker,
-            args=(url, folder, quality_format, subtitle_languages),
+            args=(url, folder, quality_format, subtitle_languages, audio_only),
             daemon=True,
         ).start()
 
@@ -680,17 +721,30 @@ class VideoMeadow(tk.Tk):
         output_dir: Path,
         quality_format: str,
         subtitle_languages: list[str] | None,
+        audio_only: bool,
     ) -> None:
         output_dir.mkdir(parents=True, exist_ok=True)
+        if audio_only and not shutil.which("ffmpeg"):
+            self.queue.put(("error", "MP3 conversion requires ffmpeg. Install it and make sure it is available in PATH."))
+            return
         options = {
-            "format": quality_format,
+            "format": "bestaudio/best" if audio_only else quality_format,
             "outtmpl": str(output_dir / "%(title)s [%(id)s]" / "%(title)s [%(id)s].%(ext)s"),
-            "merge_output_format": "mp4",
             "noplaylist": True,
             "progress_hooks": [self._progress_hook],
             "quiet": True,
             "no_warnings": True,
         }
+        if not audio_only:
+            options["merge_output_format"] = "mp4"
+        else:
+            options["postprocessors"] = [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                }
+            ]
         if subtitle_languages:
             options.update(
                 {
@@ -742,7 +796,8 @@ class VideoMeadow(tk.Tk):
                     self.options_ready = False
                     self.check_button.configure(state="normal")
                     self.quality_button.configure(state="disabled")
-                    self.subtitle_button.configure(state="disabled")
+                    self.audio_only_button.configure(state="disabled")
+                    self.subtitle_combo.configure(state="disabled")
                     self.status_var.set("Could not inspect the video")
                     self.detail_var.set("Check the link and try again")
                     messagebox.showerror(APP_TITLE, payload)
@@ -770,7 +825,9 @@ class VideoMeadow(tk.Tk):
         self.check_button.configure(state=state)
         option_state = state if enabled and self.options_ready else "disabled"
         self.quality_button.configure(state=option_state)
-        self.subtitle_button.configure(state=option_state)
+        self.audio_only_button.configure(state=option_state if self.audio_available else "disabled")
+        subtitle_state = option_state if len(self.subtitle_options) > 1 else "disabled"
+        self.subtitle_combo.configure(state=subtitle_state)
 
 
 if __name__ == "__main__":
