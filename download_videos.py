@@ -46,6 +46,7 @@ class VideoMeadow(tk.Tk):
         ("SUBTITLES: IT", ["it"]),
         ("SUBTITLES: EN", ["en"]),
     )
+    DAY_RESET_TIME = time(hour=7, minute=0)
 
     def __init__(self) -> None:
         super().__init__()
@@ -254,7 +255,7 @@ class VideoMeadow(tk.Tk):
         ).pack(side="left", ipady=7)
         tk.Label(
             night_row,
-            text="  (HH:MM format)  ...the moon and stars will appear automatically!",
+            text="  (HH:MM format)  ...the moon and stars will appear automatically; day resets at 07:00!",
             bg=self.COLORS["cream"],
             fg=self.COLORS["muted"],
             font=("Courier New", 8),
@@ -495,7 +496,10 @@ class VideoMeadow(tk.Tk):
             threshold = time(hour=hour, minute=minute)
         except (ValueError, TypeError):
             threshold = time(hour=20, minute=0)
-        return datetime.now().time() >= threshold
+        current_time = datetime.now().time()
+        if threshold >= self.DAY_RESET_TIME:
+            return current_time >= threshold or current_time < self.DAY_RESET_TIME
+        return threshold <= current_time < self.DAY_RESET_TIME
 
     def _on_night_time_changed(self, *_args: str) -> None:
         if hasattr(self, "header_canvas"):

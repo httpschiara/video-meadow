@@ -55,7 +55,7 @@ After setup, launch the app by double-clicking the desktop shortcut or `run_vide
 5. Use the `QUALITY` button to cycle through the available quality levels.
 6. Choose a subtitle language from the `SUBTITLES` dropdown.
 7. Toggle the separate `AUDIO ONLY` button to download just the best available audio track and convert it to MP3.
-8. Optionally set the night mode start time using the `HH:MM` format.
+8. Optionally set the night mode start time using the `HH:MM` format. Day mode always resets at 07:00 AM.
 9. Click `DOWNLOAD VIDEO` or `DOWNLOAD AUDIO` and wait for the download to finish.
 
 The default folder is the directory from which the application is launched. Each download is organized into a subfolder using this format:

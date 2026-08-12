@@ -12,3 +12,6 @@ __pycache__/
 # subtitles
 *.srt
 *.txt
+
+# downloaded video folders created by yt-dlp
+**/* [[]*[]]/
