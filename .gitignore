@@ -4,6 +4,7 @@ __pycache__/
 
 # videos
 *.mp4
+*.mp3
 *.mkv
 *.webm
 *.avi
@@ -11,7 +12,6 @@ __pycache__/
 
 # subtitles
 *.srt
-*.txt
 
 # downloaded video folders created by yt-dlp
 **/* [[]*[]]/
